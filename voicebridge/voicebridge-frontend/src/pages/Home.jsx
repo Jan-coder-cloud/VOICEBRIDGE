@@ -1,11 +1,12 @@
+// src/pages/Home.jsx
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import TileBoard from '../components/TileBoard.jsx'
 import SentenceBar from '../components/SentenceBar.jsx'
 import SosModal from '../components/SosModal.jsx'
 import VoiceSettings from '../components/VoiceSettings.jsx'
 
 export default function Home() {
+  // 🔹 States
   const [sentence, setSentence] = useState('')
   const [showSOS, setShowSOS] = useState(false)
   const [voices, setVoices] = useState([])
@@ -14,8 +15,9 @@ export default function Home() {
   const [pitch, setPitch] = useState(parseFloat(localStorage.getItem('pitch')) || 1)
   const [language, setLanguage] = useState(localStorage.getItem('language') || 'en')
   const [history, setHistory] = useState(JSON.parse(localStorage.getItem('history')) || [])
+  const [chatVisible, setChatVisible] = useState(false)
 
-  // 🔹 Translations for English + Tamil
+  // 🔹 Translations
   const translations = {
     en: {
       heroText:
@@ -52,16 +54,11 @@ export default function Home() {
     function loadVoices() {
       const v = window.speechSynthesis.getVoices()
       setVoices(v)
-
-      let preferred
-      if (language === 'ta') {
-        preferred = v.find(x => x.lang.toLowerCase().startsWith('ta'))
-      } else {
-        preferred = v.find(x => /(en-GB|en-US)/i.test(x.lang))
-      }
+      let preferred = language === 'ta'
+        ? v.find(x => x.lang.toLowerCase().startsWith('ta'))
+        : v.find(x => /(en-GB|en-US)/i.test(x.lang))
       setVoiceId(prev => prev || preferred?.name || v[0]?.name || '')
     }
-
     loadVoices()
     window.speechSynthesis.onvoiceschanged = loadVoices
   }, [language])
@@ -75,67 +72,56 @@ export default function Home() {
     localStorage.setItem('history', JSON.stringify(history))
   }, [voiceId, rate, pitch, language, history])
 
-  // 🔹 Handle tile click
-  const handleTileClick = word => {
-    setSentence(prev => (prev ? prev + ' ' : '') + word)
-  }
-
+  // 🔹 Handlers
+  const handleTileClick = word => setSentence(prev => (prev ? prev + ' ' : '') + word)
   const handleClear = () => setSentence('')
 
-    // 🔹 Speak text (Google TTS for Tamil)
-    const handleSpeak = async () => {
-      if (!sentence.trim()) return;
-      if (language === 'ta') {
-        // Use Google TTS via backend
-        try {
-          const res = await fetch('http://localhost:5000/api/tts-tamil', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: sentence.trim() })
-          });
-          const data = await res.json();
-          if (data.audioContent) {
-            const audio = new window.Audio('data:audio/mp3;base64,' + data.audioContent);
-            audio.play();
-          } else {
-            alert('Failed to get Tamil audio.');
-          }
-        } catch (err) {
-          alert('Error with Google TTS: ' + err.message);
-        }
-      } else {
-        // Use browser TTS for other languages
-        const utter = new SpeechSynthesisUtterance(sentence.trim());
-        let v = voices.find(x => x.name === voiceId);
-        if (v) utter.voice = v;
-        utter.rate = rate;
-        utter.pitch = pitch;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utter);
+  const handleSpeak = async () => {
+    if (!sentence.trim()) return
+
+    if (language === 'ta') {
+      try {
+        const res = await fetch('http://localhost:5000/api/tts-tamil', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: sentence.trim() })
+        })
+        const data = await res.json()
+        if (data.audioContent) {
+          const audio = new Audio('data:audio/mp3;base64,' + data.audioContent)
+          audio.play()
+        } else alert('Failed to get Tamil audio.')
+      } catch (err) {
+        alert('Error with Google TTS: ' + err.message)
       }
-      // 🔹 Add to history
-      setHistory(prev => [sentence.trim(), ...prev].slice(0, 10))
+    } else {
+      const utter = new SpeechSynthesisUtterance(sentence.trim())
+      const v = voices.find(x => x.name === voiceId)
+      if (v) utter.voice = v
+      utter.rate = rate
+      utter.pitch = pitch
+      window.speechSynthesis.cancel()
+      window.speechSynthesis.speak(utter)
+    }
+
+    setHistory(prev => [sentence.trim(), ...prev].slice(0, 10))
   }
 
-  // 🔹 Reuse sentence from history
   const handleHistoryClick = sent => setSentence(sent)
+  const toggleChat = () => setChatVisible(!chatVisible)
 
   return (
     <div className="container">
       <section className="hero">
-        <div className="hero-text">
-          <h1>VoiceBridge</h1>
-          <p>{translations[language].heroText}</p>
-
-          {/* Language Selector */}
-          <label style={{ marginTop: '1rem', display: 'block' }}>
-            Language:{' '}
-            <select value={language} onChange={e => setLanguage(e.target.value)}>
-              <option value="en">English</option>
-              <option value="ta">தமிழ்</option>
-            </select>
-          </label>
-        </div>
+        <h1>VoiceBridge</h1>
+        <p>{translations[language].heroText}</p>
+        <label style={{ display: 'block', marginTop: '1rem' }}>
+          Language:{' '}
+          <select value={language} onChange={e => setLanguage(e.target.value)}>
+            <option value="en">English</option>
+            <option value="ta">தமிழ்</option>
+          </select>
+        </label>
       </section>
 
       <SentenceBar
@@ -146,25 +132,70 @@ export default function Home() {
         onHistoryClick={handleHistoryClick}
       />
 
-      <div className="board-and-settings">
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
         <TileBoard
           onTileClick={handleTileClick}
           onSOS={() => setShowSOS(true)}
           categories={translations[language].categories}
           language={language}
         />
-        <VoiceSettings
-          voices={voices}
-          voiceId={voiceId}
-          setVoiceId={setVoiceId}
-          rate={rate}
-          setRate={setRate}
-          pitch={pitch}
-          setPitch={setPitch}
-        />
+
+        <div style={{ position: 'relative' }}>
+          <VoiceSettings
+            voices={voices}
+            voiceId={voiceId}
+            setVoiceId={setVoiceId}
+            rate={rate}
+            setRate={setRate}
+            pitch={pitch}
+            setPitch={setPitch}
+          />
+
+          <button
+            onClick={toggleChat}
+            style={{
+              position: 'fixed',
+              bottom: '80px',
+              right: '30px',
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              backgroundColor: '#2563eb',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'white',
+              fontSize: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              zIndex: 1001
+            }}
+            title="Open Chat"
+          >
+            💬
+          </button>
+        </div>
       </div>
 
       {showSOS && <SosModal onClose={() => setShowSOS(false)} language={language} />}
+      {chatVisible && (
+        <iframe
+          src="https://cdn.botpress.cloud/webchat/v3.2/shareable.html?configUrl=https://files.bpcontent.cloud/2025/09/22/17/20250922172603-MHNBCZH9.json"
+          style={{
+            position: 'fixed',
+            bottom: '100px',
+            right: '20px',
+            width: '350px',
+            height: '500px',
+            border: '1px solid #ccc',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            zIndex: 1000,
+          }}
+          title="VoiceBridge Chat"
+        />
+      )}
     </div>
   )
 }
