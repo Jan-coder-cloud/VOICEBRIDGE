@@ -25,7 +25,6 @@ export default function Appointment(){
       setStatus('Error sending appointment.')
     }
   }
-
   return (
     <div className="container narrow">
       <h2>Appointment Request</h2>
@@ -59,3 +58,6 @@ export default function Appointment(){
     </div>
   )
 }
+
+
+
