@@ -1,4 +1,15 @@
 // backend/server.js
+/*require('dotenv').config()
+const express = require('express')
+const mongoose = require('mongoose')
+const cors = require('cors')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const nodemailer = require('nodemailer')
+const textToSpeech = require('@google-cloud/text-to-speech')
+const fs = require('fs')
+const util = require('util')
+*/
 require('dotenv').config()
 const express = require('express')
 const mongoose = require('mongoose')
@@ -6,31 +17,36 @@ const cors = require('cors')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
+const textToSpeech = require('@google-cloud/text-to-speech')
 
 const User = require('./models/User')
 const Appointment = require('./models/Appointment')
 
 const app = express()
+app.use(cors({ origin: 'http://localhost:5173' })) // <-- allow your frontend
 app.use(express.json())
-app.use(cors())
 
-// Connect to MongoDB
+// Set Google credentials
+if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = __dirname + '/google-credentials.json'
+}
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true, useUnifiedTopology: true
-}).then(() => console.log('Mongo connected')).catch(err => console.error(err))
+}).then(() => console.log('MongoDB connected')).catch(err => console.error(err))
 
-// Nodemailer transporter (example using SMTP)
+// Nodemailer transporter (optional)
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,      // e.g. smtp.gmail.com
+  host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT || 587,
-  secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for others
+  secure: process.env.EMAIL_SECURE === 'true',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 })
 
-// Utility: auth middleware
+// Auth middleware
 const auth = async (req, res, next) => {
   const authHeader = req.headers.authorization
   if (!authHeader) return res.status(401).json({ error: 'No auth token' })
@@ -39,11 +55,10 @@ const auth = async (req, res, next) => {
     const payload = jwt.verify(token, process.env.JWT_SECRET)
     req.user = payload
     next()
-  } catch (err) {
+  } catch {
     res.status(401).json({ error: 'Invalid token' })
   }
 }
-
 // Signup
 app.post('/api/signup', async (req, res) => {
   const { name, email, password } = req.body
@@ -79,15 +94,14 @@ app.post('/api/login', async (req, res) => {
   }
 })
 
-// Appointment endpoint (requires auth, but you can remove auth if you want public)
+// Appointment endpoint (requires auth)
 app.post('/api/appointment', auth, async (req, res) => {
   const { reason, date, time, message, doctorEmail, userEmail } = req.body
   if (!doctorEmail || !date || !time) return res.status(400).json({ error: 'Missing required fields' })
   try {
-    // Store in DB
     const appointment = new Appointment({
       user: req.user.id,
-      userEmail: userEmail || '',  // optional
+      userEmail: userEmail || '',
       doctorEmail,
       reason,
       date,
@@ -96,13 +110,11 @@ app.post('/api/appointment', auth, async (req, res) => {
     })
     await appointment.save()
 
-    // Compose email
     const mailOpts = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: doctorEmail,
       subject: `New Appointment Request - ${date} ${time}`,
-      text:
-`Hello,
+      text: `Hello,
 
 You have received a new appointment request.
 
@@ -116,11 +128,9 @@ ${message || 'None'}
 
 Please reply to this email or login to the system to respond.
 
-Thank you.
-`
+Thank you.`
     }
 
-    // send email
     transporter.sendMail(mailOpts, (err, info) => {
       if (err) {
         console.error('Mail error', err)
@@ -134,5 +144,29 @@ Thank you.
   }
 })
 
+// Google TTS endpoint for Tamil
+app.post('/api/tts-tamil', async (req, res) => {
+  const { text } = req.body
+  if (!text) return res.status(400).json({ error: 'Text is required' })
+
+  const client = new textToSpeech.TextToSpeechClient()
+  const request = {
+    input: { text },
+    voice: { languageCode: 'ta-IN', ssmlGender: 'FEMALE' },
+    audioConfig: { audioEncoding: 'MP3' }
+  }
+
+  try {
+    const [response] = await client.synthesizeSpeech(request)
+    res.json({ audioContent: response.audioContent.toString('base64') })
+  } catch (err) {
+    console.error('TTS Error:', err)
+    res.status(500).json({ error: 'Failed to get Tamil audio.' })
+  }
+})
+
+// Test
+app.get('/', (req, res) => res.send('VoiceBridge Backend running!'))
+
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => console.log(`Server running on ${PORT}`))
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
