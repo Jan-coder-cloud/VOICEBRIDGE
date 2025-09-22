@@ -1,34 +1,35 @@
-// src/components/Login.jsx
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getUser, setCurrentUser } from '../utils/localAuth'
 
-export default function Login(){
+export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState('')
   const navigate = useNavigate()
 
-  const submit = async (e) => {
+  useEffect(() => {
+    const current = JSON.parse(localStorage.getItem('currentUser') || 'null')
+    if (current) navigate('/dashboard')
+  }, [])
+
+  const submit = (e) => {
     e.preventDefault()
     setStatus('Logging in...')
-    try {
-      const res = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      })
-      const data = await res.json()
-      if (res.ok) {
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        setStatus('Logged in')
-        navigate('/') // go wherever
-      } else {
-        setStatus(data.error || 'Login failed')
-      }
-    } catch (err) {
-      console.error(err)
-      setStatus('Error logging in')
+
+    const user = getUser(email)
+    if (!user) {
+      setStatus('User not found. Please sign up.')
+      setTimeout(() => navigate('/signup'), 1500)
+      return
+    }
+
+    if (user.password === password) {
+      setCurrentUser(user)
+      setStatus('Login successful!')
+      setTimeout(() => navigate('/dashboard'), 1000)
+    } else {
+      setStatus('Incorrect password.')
     }
   }
 

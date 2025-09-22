@@ -82,27 +82,39 @@ export default function Home() {
 
   const handleClear = () => setSentence('')
 
-  // 🔹 Speak text
-  const handleSpeak = () => {
-    if (!sentence.trim()) return
-    const utter = new SpeechSynthesisUtterance(sentence.trim())
-
-    let v
-    if (language === 'ta') {
-      v = voices.find(x => x.lang.toLowerCase().startsWith('ta'))
-    } else {
-      v = voices.find(x => x.name === voiceId)
-    }
-    if (v) utter.voice = v
-
-    utter.rate = rate
-    utter.pitch = pitch
-
-    window.speechSynthesis.cancel()
-    window.speechSynthesis.speak(utter)
-
-    // 🔹 Add to history
-    setHistory(prev => [sentence.trim(), ...prev].slice(0, 10))
+    // 🔹 Speak text (Google TTS for Tamil)
+    const handleSpeak = async () => {
+      if (!sentence.trim()) return;
+      if (language === 'ta') {
+        // Use Google TTS via backend
+        try {
+          const res = await fetch('http://localhost:5000/api/tts-tamil', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: sentence.trim() })
+          });
+          const data = await res.json();
+          if (data.audioContent) {
+            const audio = new window.Audio('data:audio/mp3;base64,' + data.audioContent);
+            audio.play();
+          } else {
+            alert('Failed to get Tamil audio.');
+          }
+        } catch (err) {
+          alert('Error with Google TTS: ' + err.message);
+        }
+      } else {
+        // Use browser TTS for other languages
+        const utter = new SpeechSynthesisUtterance(sentence.trim());
+        let v = voices.find(x => x.name === voiceId);
+        if (v) utter.voice = v;
+        utter.rate = rate;
+        utter.pitch = pitch;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+      }
+      // 🔹 Add to history
+      setHistory(prev => [sentence.trim(), ...prev].slice(0, 10))
   }
 
   // 🔹 Reuse sentence from history

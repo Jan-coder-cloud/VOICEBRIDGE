@@ -1,37 +1,29 @@
-// src/components/Signup.jsx
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { saveUser, setCurrentUser, getUser } from '../utils/localAuth'
 
-export default function Signup(){
+export default function Signup() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [status, setStatus] = useState('')
   const navigate = useNavigate()
 
-  const submit = async (e) => {
+  const submit = (e) => {
     e.preventDefault()
     setStatus('Signing up...')
-    try {
-      const res = await fetch('http://localhost:5000/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
-      })
-      const data = await res.json()
-      if (res.ok) {
-        // Save token + user locally
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        setStatus('Signup successful')
-        navigate('/') // or appointment page
-      } else {
-        setStatus(data.error || 'Failed to signup')
-      }
-    } catch (err) {
-      console.error(err)
-      setStatus('Error signing up')
+
+    if (getUser(email)) {
+      setStatus('User already exists. Please login.')
+      setTimeout(() => navigate('/login'), 1500)
+      return
     }
+
+    const user = { name, email, password }
+    saveUser(user)
+    setCurrentUser(user)
+    setStatus('Signup successful!')
+    setTimeout(() => navigate('/dashboard'), 1000)
   }
 
   return (

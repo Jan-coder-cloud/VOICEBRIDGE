@@ -9,9 +9,10 @@ export default function Navbar() {
         <Link to="/" className="brand">VoiceBridge</Link>
       </div>
       <nav className="nav-right">
-        <NavLink to="/" end>Home</NavLink>
+        <NavLink to="/home" end>Home</NavLink>
         <NavLink to="/appointment">Appointment</NavLink>
         <NavLink to="/guide">Guide</NavLink>
+        <NavLink to="/dashboard">Dashboard</NavLink> {/* Added Dashboard */}
       </nav>
     </header>
   )
