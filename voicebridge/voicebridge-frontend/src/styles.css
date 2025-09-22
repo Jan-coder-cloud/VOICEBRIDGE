@@ -13,18 +13,43 @@
 
 *{ box-sizing: border-box; }
 html, body, #root { height: 100%; }
-body{
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* full viewport height */
+}
+
+.content {
+  flex: 1;          /* take remaining space */
+  overflow-y: auto; /* scrollable */
+  padding: 24px;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: radial-gradient(80% 100% at 10% 0%, rgba(124,58,237,.15), transparent 40%) , 
+              radial-gradient(60% 80% at 100% 0%, rgba(6,182,212,.15), transparent 35%), 
+              #0b1020;
+  background-attachment: fixed; /* keeps background in place */
+  color: var(--text);
+}
+
+
+/* body{
   margin: 0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
   background: radial-gradient(80% 100% at 10% 0%, rgba(124,58,237,.15), transparent 40%) , radial-gradient(60% 80% at 100% 0%, rgba(6,182,212,.15), transparent 35%), #0b1020;
   color: var(--text);
-}
+} */
 
+/* 
 .app-shell{
   min-height: 100%;
   display: flex;
   flex-direction: column;
-}
+} */
 
 .navbar{
   display: flex; align-items: center; justify-content: space-between;
@@ -39,7 +64,8 @@ body{
 }
 .nav-right a.active { background: linear-gradient(90deg, var(--brand1), var(--brand2)); color: white; }
 
-.content{ flex: 1; padding: 24px; }
+/* .content{ flex: 1; padding: 24px; } */
+
 
 .hero{
   display: grid; grid-template-columns: 1.2fr; gap: 16px; margin: 8px auto 16px; max-width: 1100px;
