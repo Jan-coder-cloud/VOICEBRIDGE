@@ -194,19 +194,33 @@ const suggestionsMap = {
 }
 
 
-function speak(text) {
+// Speak function with language support
+function speak(text, language = 'en') {
   if ('speechSynthesis' in window) {
     const utter = new window.SpeechSynthesisUtterance(text)
+    // Pick Tamil or English voice
+    const voices = window.speechSynthesis.getVoices()
+    let v
+    if (language === 'ta') {
+      v = voices.find(x => x.lang && x.lang.toLowerCase().startsWith('ta'))
+      utter.lang = 'ta-IN'
+    } else {
+      v = voices.find(x => x.lang && (x.lang.toLowerCase().startsWith('en') || x.lang.toLowerCase().startsWith('en-')))
+      utter.lang = 'en-US'
+    }
+    if (v) utter.voice = v
+    window.speechSynthesis.cancel()
     window.speechSynthesis.speak(utter)
   }
 }
 
-export default function TileBoard({ categories, onTileClick, onSOS }) {
+
+export default function TileBoard({ categories, onTileClick, onSOS, language = 'en' }) {
   const [suggestions, setSuggestions] = useState([])
 
   const handleTileClick = (t) => {
     if (onTileClick) onTileClick(t)
-    speak(t)
+    speak(t, language)
 
     const key = t.toLowerCase()
     setSuggestions(suggestionsMap[key] || [])
@@ -214,7 +228,7 @@ export default function TileBoard({ categories, onTileClick, onSOS }) {
 
   const handleSuggestionClick = (s) => {
     if (onTileClick) onTileClick(s)
-    speak(s)
+    speak(s, language)
 
     const key = s.toLowerCase()
     setSuggestions(suggestionsMap[key] || [])
