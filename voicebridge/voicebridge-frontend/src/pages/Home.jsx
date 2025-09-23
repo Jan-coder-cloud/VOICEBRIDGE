@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import TileBoard from '../components/TileBoard.jsx'
 import SentenceBar from '../components/SentenceBar.jsx'
 import SosModal from '../components/SosModal.jsx'
@@ -16,6 +16,9 @@ export default function Home() {
   const [language, setLanguage] = useState(localStorage.getItem('language') || 'en')
   const [history, setHistory] = useState(JSON.parse(localStorage.getItem('history')) || [])
   const [chatVisible, setChatVisible] = useState(false)
+
+  // 🔹 Ref for Botpress iframe
+  const chatIframeRef = useRef(null)
 
   // 🔹 Translations
   const translations = {
@@ -54,7 +57,7 @@ export default function Home() {
     function loadVoices() {
       const v = window.speechSynthesis.getVoices()
       setVoices(v)
-      let preferred = language === 'ta'
+      const preferred = language === 'ta'
         ? v.find(x => x.lang.toLowerCase().startsWith('ta'))
         : v.find(x => /(en-GB|en-US)/i.test(x.lang))
       setVoiceId(prev => prev || preferred?.name || v[0]?.name || '')
@@ -73,12 +76,18 @@ export default function Home() {
   }, [voiceId, rate, pitch, language, history])
 
   // 🔹 Handlers
-  const handleTileClick = word => setSentence(prev => (prev ? prev + ' ' : '') + word)
+  const handleTileClick = word => {
+    const newSentence = sentence ? sentence + ' ' + word : word
+    setSentence(newSentence)
+    sendMessageToBot(newSentence)
+    setSentence('') // clear after sending
+    setHistory(prev => [newSentence, ...prev].slice(0, 10))
+  }
+
   const handleClear = () => setSentence('')
 
   const handleSpeak = async () => {
     if (!sentence.trim()) return
-
     if (language === 'ta') {
       try {
         const res = await fetch('http://localhost:5000/api/tts-tamil', {
@@ -103,12 +112,21 @@ export default function Home() {
       window.speechSynthesis.cancel()
       window.speechSynthesis.speak(utter)
     }
-
     setHistory(prev => [sentence.trim(), ...prev].slice(0, 10))
   }
 
   const handleHistoryClick = sent => setSentence(sent)
   const toggleChat = () => setChatVisible(!chatVisible)
+
+  // 🔹 Send message to Botpress via postMessage
+  const sendMessageToBot = msg => {
+    if (chatIframeRef.current) {
+      chatIframeRef.current.contentWindow.postMessage(
+        { type: 'webchat/send_message', payload: msg },
+        '*'
+      )
+    }
+  }
 
   return (
     <div className="container">
@@ -181,6 +199,7 @@ export default function Home() {
       {showSOS && <SosModal onClose={() => setShowSOS(false)} language={language} />}
       {chatVisible && (
         <iframe
+          ref={chatIframeRef}
           src="https://cdn.botpress.cloud/webchat/v3.2/shareable.html?configUrl=https://files.bpcontent.cloud/2025/09/22/17/20250922172603-MHNBCZH9.json"
           style={{
             position: 'fixed',
