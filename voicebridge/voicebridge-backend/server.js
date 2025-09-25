@@ -31,12 +31,12 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import textToSpeech from "@google-cloud/text-to-speech";
+// import textToSpeech from "@google-cloud/text-to-speech";
 import gTTS from "gtts";
 
 import User from "./models/User.js";
 import Appointment from "./models/Appointment.js";
-import connectToDatabase from "./configs/db.js"; // ES module import
+// import connectToDatabase from "./configs/db.js"; // ES module import
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -79,24 +79,24 @@ app.use(express.json());
 // }
 
 //new :
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
-// Set Google credentials
-if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = path.join(
-    __dirname,
-    "google-credentials.json"
-  );
-}
+// // Set Google credentials
+// if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+//   process.env.GOOGLE_APPLICATION_CREDENTIALS = path.join(
+//     __dirname,
+//     "google-credentials.json"
+//   );
+// }
 // MongoDB connection
-mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error(err));
+// mongoose
+//   .connect(process.env.MONGO_URI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log("MongoDB connected"))
+//   .catch((err) => console.error(err));
 
 // Nodemailer transporter (optional)
 const transporter = nodemailer.createTransport({
@@ -274,7 +274,7 @@ app.post(
   }
 );
 // Google TTS endpoint for Tamil
-//original
+// original
 // app.post("/api/tts-tamil", async (req, res) => {
 //   const { text } = req.body;
 //   if (!text) return res.status(400).json({ error: "Text is required" });
@@ -295,20 +295,52 @@ app.post(
 //   }
 // });
 
-//updated code
+// app.post("/api/tts-tamil", async (req, res) => {
+//   const { text } = req.body;
+//   if (!text) return res.status(400).json({ error: "Text is required" });
+
+//   try {
+//     const gtts = new gTTS(text, "ta");
+//     res.setHeader("Content-Type", "audio/mpeg");
+//     gtts.stream().pipe(res);
+//   } catch (err) {
+//     console.error("TTS Error:", err);
+//     res.status(500).json({ error: "Failed to generate Tamil audio" });
+//   }
+// });
+
 app.post("/api/tts-tamil", async (req, res) => {
   const { text } = req.body;
-  if (!text) return res.status(400).json({ error: "Text is required" });
+  if (!text) {
+    return res.status(400).json({ error: "Text is required" });
+  }
 
   try {
-    const gtts = new gTTS(text, "ta");
+    const gtts = new gTTS(text, "ta"); // "ta" = Tamil
     res.setHeader("Content-Type", "audio/mpeg");
+
+    // Stream audio back to frontend
     gtts.stream().pipe(res);
   } catch (err) {
-    console.error(err);
+    console.error("Tamil TTS error:", err);
     res.status(500).json({ error: "Failed to generate Tamil audio" });
   }
 });
+
+//updated code
+// app.post("/api/tts-tamil", async (req, res) => {
+//   const { text } = req.body;
+//   if (!text) return res.status(400).json({ error: "Text is required" });
+
+//   try {
+//     const gtts = new gTTS(text, "ta");
+//     res.setHeader("Content-Type", "audio/mpeg");
+//     gtts.stream().pipe(res);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Failed to generate Tamil audio" });
+//   }
+// });
 
 // Test
 app.get("/", (req, res) => res.send("VoiceBridge Backend running!"));
